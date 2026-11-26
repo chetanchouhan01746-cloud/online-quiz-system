@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online Quiz & Exam Portal</title>
+<style>
+* { box-sizing: border-box; font-family: Arial, sans-serif; }
+body { background: linear-gradient(135deg, #0f172a, #1e3a8a); min-height: 100vh; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+.card { background: #fff; width: 100%; max-width: 560px; border-radius: 14px; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
+.header { background: #1e293b; color: #fff; padding: 20px; text-align: center; }
+.header h2 { margin: 0; font-size: 20px; }
+.header p { margin: 4px 0 0; font-size: 13px; color: #94a3b8; }
+.body { padding: 22px; }
+label { display: block; font-size: 13px; font-weight: bold; color: #334155; margin-top: 10px; }
+input, select { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; color: #fff; cursor: pointer; margin-top: 12px; }
+.blue { background: #2563eb; }
+.green { background: #16a34a; }
+.hidden { display: none; }
+.timer { background: #0f172a; color: #38bdf8; padding: 12px; border-radius: 8px; text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 15px; position: sticky; top: 10px; }
+.q-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+.opt { display: flex; align-items: center; gap: 8px; padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 6px; font-weight: normal; cursor: pointer; }
+.summary { background: #f1f5f9; padding: 14px; border-radius: 8px; line-height: 1.6; white-space: pre-line; font-size: 15px; }
+.ok { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 10px; margin-top: 8px; border-radius: 6px; white-space: pre-line; font-size: 14px; }
+.no { background: #fef2f2; border-left: 4px solid #dc2626; padding: 10px; margin-top: 8px; border-radius: 6px; white-space: pre-line; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h2>Online Quiz & Examination System</h2>
+    <p>Automated Evaluation & Time-Tracked Portal</p>
+  </div>
+  <div class="body">
+    <div id="step1">
+      <label>Allotted Time (in Minutes)</label>
+      <input type="number" id="minutes" value="2" min="1">
+      <label>Question</label>
+      <input type="text" id="q" placeholder="Enter your question">
+      <div class="grid">
+        <div><label>Option A</label><input type="text" id="a" placeholder="Option A"></div>
+        <div><label>Option B</label><input type="text" id="b" placeholder="Option B"></div>
+        <div><label>Option C</label><input type="text" id="c" placeholder="Option C"></div>
+        <div><label>Option D</label><input type="text" id="d" placeholder="Option D"></div>
+      </div>
+      <label>Correct Answer</label>
+      <select id="ans">
+        <option value="A">Option A</option>
+        <option value="B">Option B</option>
+        <option value="C">Option C</option>
+        <option value="D">Option D</option>
+      </select>
+      <button type="button" class="blue" id="addBtn">+ Add Question (<span id="count">0</span>)</button>
+      <button type="button" class="green" id="nextBtn">Finish Setup & Open Exam</button>
+    </div>
+
+    <div id="step2" class="hidden">
+      <label>Student Full Name</label>
+      <input type="text" id="name" placeholder="Enter full name">
+      <label>Roll Number</label>
+      <input type="text" id="roll" placeholder="Enter roll number">
+      <button type="button" class="blue" id="startBtn">Start Timed Exam</button>
+    </div>
+
+    <div id="step3" class="hidden">
+      <div class="timer">Time Remaining: <span id="clock">00:00</span></div>
+      <div id="list"></div>
+      <button type="button" class="green" id="finishBtn">Submit Exam</button>
+    </div>
+
+    <div id="step4" class="hidden">
+      <div class="summary" id="summary"></div>
+      <h4>Answer Key & Review</h4>
+      <div id="review"></div>
+      <button type="button" class="blue" onclick="location.reload()">Create New Quiz</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var quiz = [], totalSecs = 0, timeLeft = 0, timer = null;
+
+document.getElementById("addBtn").onclick = function() {
+  var q = document.getElementById("q").value.trim();
+  var a = document.getElementById("a").value.trim();
+  var b = document.getElementById("b").value.trim();
+  var c = document.getElementById("c").value.trim();
+  var d = document.getElementById("d").value.trim();
+  var ans = document.getElementById("ans").value;
+  if (!q || !a || !b || !c || !d) return alert("Fill all fields!");
+  quiz.push({ q: q, a: a, b: b, c: c, d: d, ans: ans });
+  document.getElementById("count").innerText = quiz.length;
+  document.getElementById("q").value = "";
+  document.getElementById("a").value = "";
+  document.getElementById("b").value = "";
+  document.getElementById("c").value = "";
+  document.getElementById("d").value = "";
+};
+
+document.getElementById("nextBtn").onclick = function() {
+  if (quiz.length === 0) return alert("Add at least 1 question!");
+  totalSecs = (parseInt(document.getElementById("minutes").value) || 2) * 60;
+  timeLeft = totalSecs;
+  document.getElementById("step1").classList.add("hidden");
+  document.getElementById("step2").classList.remove("hidden");
+};
+
+document.getElementById("startBtn").onclick = function() {
+  if (!document.getElementById("name").value.trim() || !document.getElementById("roll").value.trim()) {
+    return alert("Enter Name and Roll Number!");
+  }
+  document.getElementById("step2").classList.add("hidden");
+  document.getElementById("step3").classList.remove("hidden");
+
+  var list = document.getElementById("list");
+  list.innerHTML = "";
+  for (var i = 0; i < quiz.length; i++) {
+    var box = document.createElement("div");
+    box.className = "q-box";
+    var title = document.createElement("b");
+    title.innerText = "Q" + (i + 1) + ". " + quiz[i].q;
+    box.appendChild(title);
+
+    var opts = ["A", "B", "C", "D"];
+    var vals = [quiz[i].a, quiz[i].b, quiz[i].c, quiz[i].d];
+    for (var j = 0; j < 4; j++) {
+      var lbl = document.createElement("label");
+      lbl.className = "opt";
+      var r = document.createElement("input");
+      r.type = "radio"; r.name = "q" + i; r.value = opts[j]; r.style.width = "auto";
+      lbl.appendChild(r);
+      lbl.appendChild(document.createTextNode(opts[j] + ") " + vals[j]));
+      box.appendChild(lbl);
+    }
+    list.appendChild(box);
+  }
+
+  document.getElementById("clock").innerText = Math.floor(timeLeft / 60) + ":00";
+  timer = setInterval(function() {
+    timeLeft--;
+    var m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+    document.getElementById("clock").innerText = m + ":" + (s < 10 ? "0" : "") + s;
+    if (timeLeft <= 0) { alert("Time is up!"); submitQuiz(); }
+  }, 1000);
+};
+
+document.getElementById("finishBtn").onclick = submitQuiz;
+
+function submitQuiz() {
+  clearInterval(timer);
+  var taken = totalSecs - timeLeft, score = 0;
+  var rev = document.getElementById("review");
+  rev.innerHTML = "";
+
+  for (var i = 0; i < quiz.length; i++) {
+    var picked = document.querySelector("input[name='q" + i + "']:checked");
+    var userAns = picked ? picked.value : "None";
+    var right = (userAns === quiz[i].ans);
+    if (right) score++;
+    var item = document.createElement("div");
+    item.className = right ? "ok" : "no";
+    item.innerText = "Q" + (i + 1) + ". " + quiz[i].q + "\nYour Answer: " + userAns + " | Correct: " + quiz[i].ans;
+    rev.appendChild(item);
+  }
+
+  var pct = ((score / quiz.length) * 100).toFixed(1);
+  document.getElementById("step3").classList.add("hidden");
+  document.getElementById("step4").classList.remove("hidden");
+  document.getElementById("summary").innerText =
+    "Student: " + document.getElementById("name").value + "\n" +
+    "Roll No: " + document.getElementById("roll").value + "\n" +
+    "Time Taken: " + Math.floor(taken / 60) + "m " + (taken % 60) + "s\n" +
+    "Marks: " + score + " / " + quiz.length + " (" + pct + "%)\n" +
+    "Status: " + (pct >= 40 ? "PASS" : "FAIL");
+}
+</script>
+</body>
+</html>
